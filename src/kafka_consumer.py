@@ -6,7 +6,7 @@ from src.model_hst import build_hst_model
 
 # === Config ===
 KAFKA_BROKER = "localhost:9092"
-KAFKA_TOPIC = "resource_events"
+KAFKA_TOPIC = "resource"
 KAFKA_GROUP = "hst-anomaly-detector"
 
 # === Model ===
