@@ -1,0 +1,115 @@
+syntax= "proto3";
+
+package pb;
+
+option go_package = "ebpf_loader/internal/grpc/pb;pb";
+
+message EbpfEvent {
+  uint32 pid = 1;
+  uint32 uid = 2;
+  string comm = 3;
+  uint64 timestamp_ns = 4;
+  uint64 timestamp_ns_exit = 5;
+  uint64 latency_ns = 6;
+  string event_type = 7;
+  string node_name = 8;
+  string user = 9;
+  uint32 ppid =10;
+  uint32 gid = 11;
+  uint64 cgroup_id = 12;
+  string cgroup_name = 13;
+  uint32 user_pid = 14;
+  uint32 user_ppid = 15;
+  int64 timestamp_unix_ms = 16;
+  string container_id = 17;
+  string container_image = 18;
+  map<string,string> container_labels_json=19;
+
+  oneof payload {
+    SnooperEvent snoop = 20;
+    NetworkEvent network = 21;
+    PtraceEvent ptrace = 39;
+    MmapEvent mmap = 47;
+    MountEvent mount = 53;
+    ResourceEvent resource = 64;
+    SysFreqEvent sys_freq = 67;
+  }
+}
+
+message SnooperEvent {
+  string filename = 22;
+  int64 return_code = 23;
+}
+
+message NetworkEvent {
+  int64 return_code = 24;
+  string saddrv4 = 25;       // e.g., "192.168.1.100" or "::1"
+  string daddrv4 = 26;       // e.g., "8.8.8.8"
+  string sport = 27;       // e.g., "443"
+  string dport = 28;       // e.g., "12345"
+  string sa_family = 29;   // e.g., "AF_INET", "AF_INET6"
+  string saddrv6 =30;
+  string daddrv6=31;
+  string resolved_domain=32;
+}
+
+message PtraceEvent{
+  int64 request       = 33;
+  int64 target_pid   = 34;
+  uint64 addr         = 35;
+  uint64 data         = 36;
+  int64 return_code   = 37;
+  string request_name = 38;
+}
+
+message MmapEvent{
+  uint64 addr = 40;
+  uint64 len = 41;
+  uint64 prot = 42;
+  uint64 flags = 43;
+  uint64 fd = 44;
+  uint64 off = 45;
+  int64 return_code = 46;
+} 
+
+message MountEvent{
+  string dev_name = 48;
+  string dir_name = 49;
+  string type = 50;
+  uint64 flags = 51;
+  int64 return_code = 52;
+}
+
+message ResourceEvent{
+  uint64 CpuNs = 54;
+  uint64 UserFaults = 55;
+  uint64 KernelFaults =56;
+  uint64 VmMmapBytes = 57;
+  uint64 VmMunmapBytes =58;
+  uint64 VmBrkGrowBytes = 59;
+  uint64 VmBrkShrinkBytes = 60;
+  uint64 BytesWritten = 61;
+  uint64 BytesRead =62;
+  uint32  isActive = 63;
+}
+
+message SysFreqEvent{
+  uint32 syscall_id = 65;
+  uint64 count = 66;
+}
+
+message CollectorAck {
+  string status = 68;
+  string message = 69;
+}
+
+message Batch{
+  string type = 70;
+  repeated EbpfEvent batch = 71;
+}
+
+
+service EventCollector {
+  rpc SendEvents(stream EbpfEvent) returns (CollectorAck);
+  rpc SendBatch(Batch) returns (CollectorAck);
+}
