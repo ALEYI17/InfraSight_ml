@@ -2,7 +2,7 @@ import signal
 import time
 from confluent_kafka import Consumer, KafkaException
 from src.proto import ebpf_event_pb2
-from src.model_hst import build_hst_model
+from src.model_factory import get_model
 
 
 # === Config ===
@@ -11,7 +11,7 @@ KAFKA_TOPIC = "resource"
 KAFKA_GROUP = "hst-anomaly-detector"
 
 # === Model ===
-model = build_hst_model()
+model = get_model()
 
 # === Graceful shutdown ===
 running = True
