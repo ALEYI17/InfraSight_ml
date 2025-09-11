@@ -77,8 +77,13 @@ while running:
                 is_anomaly = model["QuantileFilter"].classify(score)
                 model.learn_one(features)
                 if is_anomaly:
-                    print(f"🚨 ALERT: anomaly detected "
-                        f"Score={score:.4f} [PID={event.pid} | COMM={event.comm}]")
+                    print(
+                        f"🚨 ALERT: anomaly detected "
+                        f"Score={score:.4f} | "
+                        f"PID={event.pid} (PPID={event.ppid}) | COMM={event.comm} | USER={event.user} | UID={event.uid} | "
+                        f"Container={event.container_id[:12]} ({event.container_image}) | "
+                        f"Node={event.node_name} | "
+                    )
     except Exception as e:
             print(f"⚠️ Error decoding/processing message: {e}")
 consumer.close()
