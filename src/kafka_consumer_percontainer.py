@@ -6,10 +6,10 @@ from src.model_factory import get_model
 import math
 from collections import defaultdict
 from river import compose, preprocessing, anomaly
+from src.config import get_config
 # === Config ===
-KAFKA_BROKER = "localhost:9092"
-KAFKA_TOPIC = "resource"
-KAFKA_GROUP = "percontainer-anomaly-detector"
+cfg = get_config()
+print(f"⚙️ Loaded config: {cfg}")
 
 # === Per-container models ===
 def build_ocsvm_model():
@@ -23,7 +23,7 @@ def build_ocsvm_model():
 
 models = defaultdict(build_ocsvm_model)
 seen_counts = defaultdict(int)
-WARMUP_EVENTS = 50  # warm-up per container
+WARMUP_EVENTS = cfg["warmup"]["size_per_container"]  # warm-up per container
 
 running = True
 def shutdown(sig, frame):
@@ -33,15 +33,17 @@ def shutdown(sig, frame):
 signal.signal(signal.SIGINT, shutdown)
 signal.signal(signal.SIGTERM, shutdown)
 
+# === Kafka consumer setup ===
 conf = {
-    "bootstrap.servers": KAFKA_BROKER,
-    "group.id": KAFKA_GROUP,
-    "auto.offset.reset": "earliest"
+    "bootstrap.servers": cfg["kafka"]["broker"],
+    "group.id": "percontainer-anomaly-detector",
+    "auto.offset.reset": cfg["kafka"]["auto_offset_reset"],
 }
+    
 consumer = Consumer(conf)
-consumer.subscribe([KAFKA_TOPIC])
+consumer.subscribe([cfg["kafka"]["topic"]])
 
-print(f"Listening on topic {KAFKA_TOPIC} for per-container models...")
+print(f"Listening on topic {cfg['kafka']['topic']} for per-container models...")
 
 while running:
     msg = consumer.poll(1.0)

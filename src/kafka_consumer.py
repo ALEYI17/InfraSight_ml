@@ -3,12 +3,11 @@ import time
 from confluent_kafka import Consumer, KafkaException
 from src.proto import ebpf_event_pb2
 from src.model_factory import get_model
-
+from src.config import get_config
 
 # === Config ===
-KAFKA_BROKER = "localhost:9092"
-KAFKA_TOPIC = "resource"
-KAFKA_GROUP = "hst-anomaly-detector"
+cfg = get_config()
+print(f"⚙️ Loaded config: {cfg}")
 
 # === Model ===
 model = get_model()
@@ -24,22 +23,22 @@ signal.signal(signal.SIGTERM, shutdown)
 
 # === Kafka consumer setup ===
 conf = {
-    "bootstrap.servers": KAFKA_BROKER,
-    "group.id": KAFKA_GROUP,
-    "auto.offset.reset": "earliest"
+    "bootstrap.servers": cfg["kafka"]["broker"],
+    "group.id": "hst-anomaly-detector",
+    "auto.offset.reset": cfg["kafka"]["auto_offset_reset"],
 }
 
 consumer = Consumer(conf)
-consumer.subscribe([KAFKA_TOPIC])
+consumer.subscribe([cfg["kafka"]["topic"]])
 
 # Warm-up parameters
-WARMUP_SIZE = 3000
-WARMUP_TIME = 240  # seconds
+WARMUP_SIZE = cfg["warmup"]["size"]
+WARMUP_TIME = cfg["warmup"]["time"]
+
 count = 0
 start_time = time.time()
 
-print(f"Listening on topic {KAFKA_TOPIC}...")
-
+print(f"Listening on topic {cfg['kafka']['topic']}...")
 while running:
     msg = consumer.poll(1.0)  # timeout = 1s
     if msg is None:
