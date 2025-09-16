@@ -70,6 +70,79 @@ ORDER BY wall_time_ms;
 | `container_image`       | String        | Container image name                                                    |
 | `container_labels_json` | JSON          | Container metadata labels in JSON format                                |
 
+# Data Schema: `audit.syscall_freq_events`
+
+This dataset contains **aggregated syscall frequency events** per process (and optionally per container).
+The table is stored in **ClickHouse** with a `MergeTree` engine and ordered by `wall_time_ms`.
+
+## ⚙️ Table Definition
+
+```sql
+CREATE TABLE IF NOT EXISTS audit.syscall_freq_events (
+  -- Common process / container metadata
+  pid UInt32,
+  comm String,
+
+  uid UInt32,
+  gid UInt32,
+  ppid UInt32,
+  user_pid UInt32,
+  user_ppid UInt32,
+  cgroup_id UInt64,
+  cgroup_name String,
+  user String,
+
+  -- Syscall aggregation
+  syscall_vector_json JSON,    -- e.g. {"0":12,"1":4,"60":9}
+
+  -- Timestamps
+  wall_time_dt DateTime64(3),
+  wall_time_ms Int64,
+
+  -- Container metadata
+  container_id String,
+  container_image String,
+  container_labels_json JSON
+)
+ENGINE = MergeTree()
+ORDER BY wall_time_ms;
+```
+
+## 📖 Field Descriptions
+
+| Column                  | Type          | Description                                                                      |
+| ----------------------- | ------------- | -------------------------------------------------------------------------------- |
+| `pid`                   | UInt32        | Process ID                                                                       |
+| `comm`                  | String        | Command / executable name                                                        |
+| `uid`                   | UInt32        | User ID of the process owner                                                     |
+| `gid`                   | UInt32        | Group ID of the process owner                                                    |
+| `ppid`                  | UInt32        | Parent process ID                                                                |
+| `user_pid`              | UInt32        | User namespace PID                                                               |
+| `user_ppid`             | UInt32        | User namespace PPID                                                              |
+| `cgroup_id`             | UInt64        | Cgroup identifier                                                                |
+| `cgroup_name`           | String        | Name of the cgroup                                                               |
+| `user`                  | String        | Username of the process owner                                                    |
+| `syscall_vector_json`   | JSON          | JSON object with aggregated syscall counts (keys = syscall IDs, values = counts) |
+| `wall_time_dt`          | DateTime64(3) | Wall clock timestamp with millisecond precision                                  |
+| `wall_time_ms`          | Int64         | Wall clock timestamp in milliseconds (used for ordering in `MergeTree`)          |
+| `container_id`          | String        | Container ID (if running inside a container)                                     |
+| `container_image`       | String        | Container image name                                                             |
+| `container_labels_json` | JSON          | Container metadata labels in JSON format                                         |
+
+## 📝 Notes on Usage
+
+* The `syscall_vector_json` field allows flexible storage of sparse syscall frequency vectors.
+  Example:
+
+  ```json
+  {"0": 12, "1": 4, "60": 9}
+  ```
+
+  where keys are syscall IDs and values are counts observed in the aggregation window.
+
+* For ML/analytics, these JSON vectors can be expanded into feature vectors using ClickHouse functions (`JSONExtract`, `mapValues`, etc.) or in Python after querying.
+
+
 
 ## 🔒 Notes on Data Privacy
 
@@ -79,4 +152,5 @@ ORDER BY wall_time_ms;
   * Share only the schema (this file).
   * Provide small, **synthetic samples** if needed.
   * Keep real logs in `.gitignore`.
+
 
