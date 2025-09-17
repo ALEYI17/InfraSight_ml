@@ -1,16 +1,22 @@
 import signal
-import time
-from confluent_kafka import Consumer, KafkaException
-from src.proto import ebpf_event_pb2
+import json
 import math
 from collections import defaultdict
+from confluent_kafka import Consumer, KafkaException
 from river import compose, preprocessing, anomaly
-from src.config import get_config
-# === Config ===
-cfg = get_config("resource")
-print(f"⚙️ Loaded config: {cfg}")
 
-# === Per-container models ===
+from src.proto import ebpf_event_pb2
+from src.config import get_config
+
+# === Config ===
+cfg = get_config("frequency")
+print(f"✅ Loaded config: {cfg}")
+
+# === Constants ===
+MAX_SYSCALLS = 500
+WARMUP_EVENTS = cfg["warmup"]["size_per_container"]
+
+# === Model builder ===
 def build_ocsvm_model():
     return compose.Pipeline(
         preprocessing.StandardScaler(),
@@ -20,30 +26,49 @@ def build_ocsvm_model():
         )
     )
 
+# === Per-container models ===
 models = defaultdict(build_ocsvm_model)
 seen_counts = defaultdict(int)
-WARMUP_EVENTS = cfg["warmup"]["size_per_container"]  # warm-up per container
 
+# === Graceful shutdown ===
 running = True
 def shutdown(sig, frame):
     global running
     running = False
     print("Shutting down...")
+
 signal.signal(signal.SIGINT, shutdown)
 signal.signal(signal.SIGTERM, shutdown)
 
 # === Kafka consumer setup ===
 conf = {
     "bootstrap.servers": cfg["kafka"]["broker"],
-    "group.id": "percontainer-anomaly-detector",
+    "group.id": "percontainer-syscall-detector",
     "auto.offset.reset": cfg["kafka"]["auto_offset_reset"],
 }
-    
 consumer = Consumer(conf)
 consumer.subscribe([cfg["kafka"]["topic"]])
 
-print(f"Listening on topic {cfg['kafka']['topic']} for per-container models...")
+print(f"📡 Listening on topic {cfg['kafka']['topic']} for syscall frequency events...")
 
+# === Helper: parse syscall vector into fixed length ===
+def parse_syscall_vector(json_str):
+    try:
+        raw = json.loads(json_str)
+    except Exception:
+        return {str(i): 0 for i in range(MAX_SYSCALLS)}
+
+    vec = {str(i): 0 for i in range(MAX_SYSCALLS)}
+    for k, v in raw.items():
+        try:
+            idx = int(k)
+            if idx < MAX_SYSCALLS:
+                vec[str(idx)] = int(v)
+        except Exception:
+            continue
+    return vec
+
+# === Main loop ===
 while running:
     msg = consumer.poll(1.0)
     if msg is None:
@@ -55,22 +80,13 @@ while running:
         event = ebpf_event_pb2.EbpfEvent()
         event.ParseFromString(msg.value())
 
-        if event.HasField("resource"):
-            res = event.resource
-            features = {
-                "cpu_ns": res.CpuNs,
-                "user_faults": res.UserFaults,
-                "kernel_faults": res.KernelFaults,
-                "vm_mmap_bytes": res.VmMmapBytes,
-                "vm_munmap_bytes": res.VmMunmapBytes,
-                "vm_brk_grow_bytes": res.VmBrkGrowBytes,
-                "vm_brk_shrink_bytes": res.VmBrkShrinkBytes,
-                "bytes_written": res.BytesWritten,
-                "bytes_read": res.BytesRead,
-            }
+        if event.HasField("syscall_freq_agg"):
             container = event.container_image
             if not container or (isinstance(container, float) and math.isnan(container)):
                 continue
+
+            # Convert JSON string → fixed-length vector
+            features = parse_syscall_vector(event.syscall_freq_agg.vector_json)
 
             model = models[container]
             seen_counts[container] += 1
@@ -80,7 +96,7 @@ while running:
                 model.learn_one(features)
                 continue
             if idx == WARMUP_EVENTS:
-                print(f"🔥 Container {container} finished warm-up ({idx} events)")
+                print(f"✅ Container {container} finished warm-up ({idx} events)")
 
             score = model.score_one(features)
             is_anomaly = model["QuantileFilter"].classify(score)
@@ -88,12 +104,14 @@ while running:
 
             if is_anomaly:
                 print(
-                    f"🚨 ALERT [{container}] Score={score:.4f} | "
-                    f"PID={event.pid} COMM={event.comm} USER={event.user} | Node={event.node_name}"
+                    f"🚨 ALERT [{container}] Syscall anomaly "
+                    f"Score={score:.4f} | PID={event.pid} COMM={event.comm} USER={event.user} "
+                    f"| Node={event.node_name}"
                 )
 
     except Exception as e:
         print(f"⚠️ Error decoding/processing message: {e}")
 
 consumer.close()
-print("✅ Consumer closed cleanly")
+print("👋 Consumer closed cleanly")
+

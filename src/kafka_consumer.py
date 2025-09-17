@@ -6,7 +6,7 @@ from src.model_factory import get_model
 from src.config import get_config
 
 # === Config ===
-cfg = get_config()
+cfg = get_config("resource")
 print(f"⚙️ Loaded config: {cfg}")
 
 # === Model ===

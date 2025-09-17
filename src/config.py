@@ -1,6 +1,6 @@
 import os
 
-def get_config():
+def get_config(topicDefault):
     """Read configuration from environment variables with sensible defaults."""
 
     return {
@@ -10,7 +10,7 @@ def get_config():
         # Kafka settings
         "kafka": {
             "broker": os.getenv("KAFKA_BROKER", "localhost:9092"),
-            "topic": os.getenv("KAFKA_TOPIC", "resource"),
+            "topic": os.getenv("KAFKA_TOPIC", topicDefault),
             "auto_offset_reset": os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest"),
         },
 
