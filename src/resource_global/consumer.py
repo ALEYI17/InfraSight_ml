@@ -75,20 +75,20 @@ def run_consumer():
                 if in_warmup:
                     model.learn_one(features)
                     if count % 100 == 0:
-                        print(f"­ƒöÑ Warm-up: {count} events, {elapsed:.1f}s elapsed")
+                        print(f"🔥 Warm-up: {count} events, {elapsed:.1f}s elapsed")
                 else:
                     score = model.score_one(features)
                     is_anomaly = model["QuantileFilter"].classify(score)
                     model.learn_one(features)
                     if is_anomaly:
                         print(
-                            f"­ƒÜ¿ ALERT: anomaly detected "
+                            f"🚨 ALERT: anomaly detected "
                             f"Score={score:.4f} | "
                             f"PID={event.pid} (PPID={event.ppid}) | COMM={event.comm} | USER={event.user} | UID={event.uid} | "
                             f"Container={event.container_id[:12]} ({event.container_image}) | "
                             f"Node={event.node_name} | "
                         )
         except Exception as e:
-                print(f"ÔÜá´©Å Error decoding/processing message: {e}")
+                print(f"⚠️ Error decoding/processing message: {e}")
     consumer.close()
-    print("Ô£à Consumer closed cleanly")
+    print("✅ Consumer closed cleanly")

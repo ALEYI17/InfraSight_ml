@@ -49,7 +49,7 @@ def run_consumer():
     global running
     # === Config ===
     cfg = get_config("frequency")
-    print(f"├ö┬ú├á Loaded config: {cfg}")
+    print(f"✅ Loaded config: {cfg}")
 
     # === Constants ===
     WARMUP_EVENTS = cfg["warmup"]["size_per_container"]
@@ -71,7 +71,7 @@ def run_consumer():
     consumer = Consumer(conf)
     consumer.subscribe([cfg["kafka"]["topic"]])
 
-    print(f"­ƒôí Listening on topic {cfg['kafka']['topic']} for syscall frequency events...")
+    print(f" Listening on topic {cfg['kafka']['topic']} for syscall frequency events...")
 
         # === Main loop ===
     while running:
@@ -101,7 +101,7 @@ def run_consumer():
                     model.learn_one(features)
                     continue
                 if idx == WARMUP_EVENTS:
-                    print(f"Ô£à Container {container} finished warm-up ({idx} events)")
+                    print(f"✅ Container {container} finished warm-up ({idx} events)")
 
                 score = model.score_one(features)
                 is_anomaly = model["QuantileFilter"].classify(score)
@@ -109,14 +109,14 @@ def run_consumer():
 
                 if is_anomaly:
                     print(
-                        f"­ƒÜ¿ ALERT [{container}] Syscall anomaly "
+                        f"🚨 ALERT [{container}] Syscall anomaly "
                         f"Score={score:.4f} | PID={event.pid} COMM={event.comm} USER={event.user} "
                         f"| Node={event.node_name}"
                     )
 
         except Exception as e:
-            print(f"ÔÜá´©Å Error decoding/processing message: {e}")
+            print(f" Error decoding/processing message: {e}")
 
     consumer.close()
-    print("­ƒæï Consumer closed cleanly")
+    print("👋 Consumer closed cleanly")
 

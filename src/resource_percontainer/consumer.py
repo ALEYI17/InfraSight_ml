@@ -29,7 +29,7 @@ def run_consumer():
     global running
     # === Config ===
     cfg = get_config("resource")
-    print(f"├ö├£├û┬┤┬®├à Loaded config: {cfg}")
+    print(f"⚙️ Loaded config: {cfg}")
 
 
     models = defaultdict(build_ocsvm_model)
@@ -87,7 +87,7 @@ def run_consumer():
                     model.learn_one(features)
                     continue
                 if idx == WARMUP_EVENTS:
-                    print(f"­ƒöÑ Container {container} finished warm-up ({idx} events)")
+                    print(f"🔥 Container {container} finished warm-up ({idx} events)")
 
                 score = model.score_one(features)
                 is_anomaly = model["QuantileFilter"].classify(score)
@@ -95,12 +95,12 @@ def run_consumer():
 
                 if is_anomaly:
                     print(
-                        f"­ƒÜ¿ ALERT [{container}] Score={score:.4f} | "
+                        f"🚨 ALERT [{container}] Score={score:.4f} | "
                         f"PID={event.pid} COMM={event.comm} USER={event.user} | Node={event.node_name}"
                     )
 
         except Exception as e:
-            print(f"ÔÜá´©Å Error decoding/processing message: {e}")
+            print(f" Error decoding/processing message: {e}")
 
     consumer.close()
-    print("Ô£à Consumer closed cleanly")
+    print("✅ Consumer closed cleanly")
