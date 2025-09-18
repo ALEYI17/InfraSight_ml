@@ -1,9 +1,9 @@
 import os
-from .model_hst import build_hst_model
-from .model_ocsvm import build_ocsvm_model
+from src.common.model_hst import build_hst_model
+from src.common.model_ocsvm import build_ocsvm_model
 
-def get_model():
-    model_name = os.getenv("ML_MODEL", "hst").lower()
+def get_model(defaultModel):
+    model_name = os.getenv("ML_MODEL", defaultModel).lower()
 
     if model_name == "hst":
         print("✅ Using Half-Space Trees model")
