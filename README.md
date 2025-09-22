@@ -147,4 +147,4 @@ This is part of the **[InfraSight](https://github.com/ALEYI17/InfraSight)** plat
 * [`ebpf_server`](https://github.com/ALEYI17/ebpf_server): Receives and stores events (e.g., to ClickHouse)
 * [`ebpf_deploy`](https://github.com/ALEYI17/ebpf_deploy): Helm charts to deploy the stack
 * [`InfraSight_ml`](https://github.com/ALEYI17/InfraSight_ml): Machine learning models for anomaly detection (this repo)
-
+* [`InfraSight_sentinel`](https://github.com/ALEYI17/InfraSight_sentinel): Rules engine that generates alerts based on predefined detection logic.
