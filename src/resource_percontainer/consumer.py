@@ -14,6 +14,9 @@ def shutdown(sig, frame):
     running = False
     print("Shutting down...")
 
+def on_assign(consumer, partitions):
+    print("✅ Successfully connected to Kafka and assigned partitions:", partitions)
+
 
 # === Per-container models ===
 def build_ocsvm_model():
@@ -47,7 +50,7 @@ def run_consumer():
     }
         
     consumer = Consumer(conf)
-    consumer.subscribe([cfg["kafka"]["topic"]])
+    consumer.subscribe([cfg["kafka"]["topic"]], on_assign=on_assign)
 
     print(f"Listening on topic {cfg['kafka']['topic']} for per-container models...")
 
