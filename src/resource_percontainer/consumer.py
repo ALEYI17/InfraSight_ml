@@ -1,5 +1,7 @@
 import signal
-import time
+import csv
+import os
+from datetime import datetime, timezone
 from confluent_kafka import Consumer, KafkaException
 from src.proto import ebpf_event_pb2
 import math
@@ -7,6 +9,39 @@ from collections import defaultdict
 from river import compose, preprocessing, anomaly
 from src.common.config import get_config
 from src.common.model_factory import get_model
+
+file_handles = {}
+csv_writers = {}
+def get_writer(container):
+    """Return a CSV writer for this container (create file if needed)."""
+    global file_handles, csv_writers
+    # Sanitize container name for filename (remove / and :)
+    safe_name = container.replace("/", "_").replace(":", "_")
+    filename = f"logs/{safe_name}.csv"
+
+    if container not in file_handles:
+        os.makedirs("logs", exist_ok=True)
+        f = open(filename, "a", newline="")
+        writer = csv.writer(f)
+
+        # Write header only once, if file is empty
+        if os.stat(filename).st_size == 0:
+             writer.writerow([
+                "timestamp", "container",
+                "pid", "ppid", "user", "gid",
+                "comm", "event_type", "node",
+                "score", "is_anomaly","phase"
+            ])
+
+        file_handles[container] = f
+        csv_writers[container] = writer
+
+    return csv_writers[container]
+
+def close_writers():
+    """Close all open file handles."""
+    for f in file_handles.values():
+        f.close()
 
 running = True
 def shutdown(sig, frame):
@@ -24,7 +59,7 @@ def build_ocsvm_model():
         preprocessing.StandardScaler(),
         anomaly.QuantileFilter(
             anomaly.OneClassSVM(nu=0.2),
-            q=0.95
+            q=0.99
         )
     )
 
@@ -91,19 +126,54 @@ def run_consumer():
                     continue
                 if idx == WARMUP_EVENTS:
                     print(f"🔥 Container {container} finished warm-up ({idx} events)")
+                    iso_time = datetime.now(timezone.utc)
+                    writer = get_writer(container)
+                    writer.writerow([
+                    iso_time.isoformat(),
+                    container,
+                    event.pid,
+                    event.ppid,
+                    event.user,
+                    event.gid,
+                    event.comm,
+                    event.event_type,
+                    event.node_name,
+                    0,
+                    0,
+                    "warmup"
+                    ])
 
                 score = model.score_one(features)
-                is_anomaly = model["QuantileFilter"].classify(score)
+                is_anomaly = model["QuantileFilter"].classify(score) or (score < 0)
                 model.learn_one(features)
-
+                
+                iso_time = datetime.now(timezone.utc)
+                writer = get_writer(container)
+                writer.writerow([
+                iso_time.isoformat(),
+                container,
+                event.pid,
+                event.ppid,
+                event.user,
+                event.gid,
+                event.comm,
+                event.event_type,
+                event.node_name,
+                f"{score:.4f}",
+                int(is_anomaly),
+                "detection"
+                ])
                 if is_anomaly:
                     print(
                         f"🚨 ALERT [{container}] Score={score:.4f} | "
                         f"PID={event.pid} COMM={event.comm} USER={event.user} | Node={event.node_name}"
                     )
+                    
+                    
 
         except Exception as e:
             print(f" Error decoding/processing message: {e}")
 
     consumer.close()
+    close_writers()
     print("✅ Consumer closed cleanly")
