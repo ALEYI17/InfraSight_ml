@@ -74,6 +74,17 @@ Each model consumer has its own Dockerfile:
     ghcr.io/aleyi17/infrasight-syscall-per-container:latest
   ```
 
+* **Gpu fingerprint:**
+
+  ```bash
+  docker run -it \
+    --network ebpf_server_default \
+    -e KAFKA_BROKER=broker:29092 \
+    ghcr.io/aleyi17/infrasight-gpu-fingerprint:latest
+  ```
+
+
+
 
 ## ⚙️ Configuration
 
