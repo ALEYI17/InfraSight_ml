@@ -2,3 +2,7 @@ auto_mix_prep==0.2.0
 confluent_kafka==2.11.1
 protobuf==6.32.1
 river==0.22.0
+scikit-learn==1.7.1
+pandas
+numpy
+joblib
